@@ -18,3 +18,10 @@ dist/
 .eggs/
 # VSCode (if used)
 .vscode/
+*.png
+*.html
+.idea/
+*.pyc
+db.sqlite3
+/staticfiles/
+/media/

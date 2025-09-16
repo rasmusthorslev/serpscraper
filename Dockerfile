@@ -8,4 +8,7 @@ WORKDIR /app
 COPY requirements.txt /app/
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
+# Install Playwright and browsers
+RUN pip install playwright playwright-stealth && playwright install --with-deps
+
 COPY ./ranktracker /app
