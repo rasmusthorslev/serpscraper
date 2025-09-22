@@ -1,5 +1,6 @@
-Django
-psycopg2-binary
+Django>=4.2
+asgiref>=3.4.0
 playwright
-playwright-stealth
+playwright_stealth
+psycopg2-binary
 celery

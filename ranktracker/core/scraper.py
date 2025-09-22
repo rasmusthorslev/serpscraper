@@ -1,6 +1,14 @@
+import os
 import asyncio
+import django
 from playwright_stealth import Stealth
 from playwright.async_api import async_playwright
+from asgiref.sync import sync_to_async
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ranktracker.settings")
+django.setup()
+from core.models import Keyword, RankResult
+
 CHROME_ARGS = [
     "--disable-blink-features=AutomationControlled",
     "--disable-extensions",
@@ -22,18 +30,19 @@ async def google_search_domains(keyword, useragent):
         )
         page = await context.new_page()
         await page.goto(f"https://www.google.com/search?q={keyword}")
-        divs = await page.locator('div[data-id^="atritem-"]').all()
+        divs = await page.locator('div.mb1nxc div[data-id^="atritem-"]').all()
         domains = []
-        for div in divs:
+        for idx, div in enumerate(divs, start=1):
             data_id = await div.get_attribute('data-id')
             if data_id and data_id.startswith('atritem-'):
                 url = data_id[len('atritem-'):]
                 domain = extract_domain(url)
                 if domain:
-                    domains.append(domain)
+                    domains.append((domain, idx))
 
         await browser.close()
         return domains
+
 def extract_domain(url):
     # Remove protocol if present
     if url.startswith("http://"):
@@ -51,11 +60,20 @@ def extract_domain(url):
             end = idx
     return url[:end]
 
-if __name__ == "__main__":
-    keyword = "django docker postgres"
-    user_agent = "Mozilla/5.0 (Linux; Android 11; sdk_gphone_x86 Build/RSR1.240422.006; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.106 Mobile Safari/537.36 GSA/11.13.8.21.x86"
-    domains = asyncio.run(google_search_domains(keyword, user_agent))
-    print("Google Search Result Domains:")
-    for domain in domains:
-        print("-", domain)
+async def scrape_all_keywords(user_agent):
+    keywords = await sync_to_async(list)(Keyword.objects.all())
+    for keyword_obj in keywords:
+        print(f"Scraping for keyword: {keyword_obj.name}")
+        domains_with_positions = await google_search_domains(keyword_obj.name, user_agent)
+        print("Google Search Result Domains:")
+        for domain, position in domains_with_positions:
+            print(f"- {domain} (position: {position})")
+            await sync_to_async(RankResult.objects.create)(
+                keyword=keyword_obj,
+                domain=domain,
+                position=position
+            )
 
+if __name__ == "__main__":
+    user_agent = "Mozilla/5.0 (Linux; Android 11; sdk_gphone_x86 Build/RSR1.240422.006; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.106 Mobile Safari/537.36 GSA/11.13.8.21.x86"
+    asyncio.run(scrape_all_keywords(user_agent))
