@@ -4,3 +4,6 @@ playwright
 playwright_stealth
 psycopg2-binary
 celery
+djangorestframework
+django-filter
+django-cors-headers
